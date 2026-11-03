@@ -139,10 +139,11 @@ public class PublishExtensionVersionHandler {
             ExtensionProcessor processor,
             AuthenticatedUser au,
             LocalDateTime timestamp,
-            boolean checkDependencies
+            boolean checkDependencies,
+            boolean bypassMetadataValidation
     ) {
         // Extract extension metadata from its manifest
-        var extVersion = createExtensionVersion(processor, au, timestamp);
+        var extVersion = createExtensionVersion(processor, au, timestamp, bypassMetadataValidation);
         var dependencies = processor.getExtensionDependencies();
         var bundledExtensions = processor.getBundledExtensions();
         if (checkDependencies) {
@@ -230,7 +231,8 @@ public class PublishExtensionVersionHandler {
     private ExtensionVersion createExtensionVersion(
             ExtensionProcessor processor,
             AuthenticatedUser au,
-            LocalDateTime timestamp
+            LocalDateTime timestamp,
+            boolean bypassMetadataValidation
     ) {
         var namespace = checkPublishPermission(processor, au.userData());
         var namespaceName = processor.getNamespace();
@@ -308,7 +310,9 @@ public class PublishExtensionVersionHandler {
         validateLicense(processor, extVersion);
         validateIcon(processor);
         validateFileResources(processor, extVersion);
-        validateMetadata(extVersion);
+        if (!bypassMetadataValidation) {
+            validateMetadata(extVersion);
+        }
         entityManager.persist(extVersion);
         return extVersion;
     }

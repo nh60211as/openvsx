@@ -109,7 +109,7 @@ public class ExtensionService {
             String timestamp
     ) {
         try (var processor = new ExtensionProcessor(extensionFile)) {
-            doPublish(processor, binaryName, au, TimeUtil.fromUTCString(timestamp), false);
+            doPublish(processor, binaryName, au, TimeUtil.fromUTCString(timestamp), false, false);
         }
         publishHandler.mirror(extensionFile, signatureName);
         return extensionFile.getResource().getExtension();
@@ -148,22 +148,22 @@ public class ExtensionService {
                 TempFile tempFile = createExtensionFile(inputStream);
                 ExtensionProcessor processor = new ExtensionProcessor(tempFile)
         ) {
-            return publishVersion(processor, au);
+            return publishVersion(processor, au, false);
         } catch (IOException e) {
             throw new ErrorResultException("Failed to read extension file", e);
         }
     }
 
-    public ExtensionVersion publishVersion(ExtensionProcessor processor, AuthenticatedUser au)
+    public ExtensionVersion publishVersion(ExtensionProcessor processor, AuthenticatedUser au, boolean bypassMetadataValidation)
             throws ErrorResultException {
         requireNonNull(processor);
         requireNonNull(au);
         var content = processor.getExtensionFile();
         if (scanService.isEnabled()) {
-            return publishVersionWithScan(processor, au);
+            return publishVersionWithScan(processor, au, bypassMetadataValidation);
         } else {
             try {
-                doPublish(processor, null, au, TimeUtil.getCurrentUTC(), true);
+                doPublish(processor, null, au, TimeUtil.getCurrentUTC(), true, bypassMetadataValidation);
             } catch (ErrorResultException exc) {
                 // In case publication fails early on we need to
                 // delete the temporary extension file, otherwise
@@ -178,7 +178,7 @@ public class ExtensionService {
         }
     }
 
-    private ExtensionVersion publishVersionWithScan(ExtensionProcessor processor, AuthenticatedUser au)
+    private ExtensionVersion publishVersionWithScan(ExtensionProcessor processor, AuthenticatedUser au, boolean bypassMetadataValidation)
             throws ErrorResultException {
         var extensionFile = processor.getExtensionFile();
         ExtensionScan scan = null;
@@ -193,7 +193,7 @@ public class ExtensionService {
 
             scanService.runValidation(scan, extensionFile, au.userData());
 
-            doPublish(processor, null, au, TimeUtil.getCurrentUTC(), true);
+            doPublish(processor, null, au, TimeUtil.getCurrentUTC(), true, bypassMetadataValidation);
 
             // Publish async handles requesting the long-running scans
             publishHandler.publishAsync(extensionFile, this, scan);
@@ -224,10 +224,11 @@ public class ExtensionService {
             String binaryName,
             AuthenticatedUser au,
             LocalDateTime timestamp,
-            boolean checkDependencies
+            boolean checkDependencies,
+            boolean bypassMetadataValidation
     ) {
         var extVersion = publishHandler
-                .createExtensionVersion(processor, au, timestamp, checkDependencies);
+                .createExtensionVersion(processor, au, timestamp, checkDependencies, bypassMetadataValidation);
         var download = processor.getBinary(extVersion, binaryName);
         processor.getExtensionFile().setResource(download);
     }

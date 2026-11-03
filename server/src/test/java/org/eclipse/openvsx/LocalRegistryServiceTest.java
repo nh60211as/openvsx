@@ -64,6 +64,7 @@ import org.eclipse.openvsx.web.WebUiProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -189,10 +190,10 @@ class LocalRegistryServiceTest {
 
         when(extensions.createExtensionFile(any())).thenReturn(tempFile);
         when(tokens.useAccessToken(eq("tok"), any())).thenReturn(tau);
-        when(extensions.publishVersion(any(ExtensionProcessor.class), eq(tau))).thenReturn(extVersion);
+        when(extensions.publishVersion(any(ExtensionProcessor.class), eq(tau), anyBoolean())).thenReturn(extVersion);
         when(storageUtilService.getFiles(any(), any(String[].class))).thenReturn(Map.of(42L, List.of()));
 
-        registryService.publish(new ByteArrayInputStream(new byte[0]), "tok");
+        registryService.publish(new ByteArrayInputStream(new byte[0]), "tok", false);
 
         assertThat(Files.exists(tempFile.getPath()))
                 .as(
@@ -216,7 +217,7 @@ class LocalRegistryServiceTest {
         // live, but its scope does not cover this package - rejected after the parse, before handoff
         when(tokens.useAccessToken(eq("tok"), any())).thenReturn(null);
 
-        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok"))
+        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok", false))
                 .isInstanceOf(ErrorResultException.class);
 
         assertThat(Files.exists(tempFile.getPath()))
@@ -409,7 +410,7 @@ class LocalRegistryServiceTest {
     void shouldRefuseAPublishOnAnUnusableTokenBeforeWritingThePackage() {
         when(tokens.isTokenLive("bogus")).thenReturn(false);
 
-        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "bogus"))
+        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "bogus", false))
                 .isInstanceOf(ErrorResultException.class)
                 .extracting(exc -> ((ErrorResultException) exc).getStatus())
                 .isEqualTo(HttpStatus.UNAUTHORIZED);
@@ -439,7 +440,7 @@ class LocalRegistryServiceTest {
         when(repositories.findNamespace("foo")).thenReturn(namespace);
         when(users.hasPublishPermission(token.getUser(), namespace)).thenReturn(false);
 
-        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok"))
+        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok", false))
                 .isInstanceOf(ErrorResultException.class)
                 .hasMessageContaining("Insufficient access rights")
                 .extracting(exc -> ((ErrorResultException) exc).getStatus())
@@ -447,7 +448,7 @@ class LocalRegistryServiceTest {
 
         // the limit is never even looked up, so there is nothing to leak
         verify(sizeLimits, never()).resolveLimit(any(), any());
-        verify(extensions, never()).publishVersion(any(ExtensionProcessor.class), any());
+        verify(extensions, never()).publishVersion(any(ExtensionProcessor.class), any(), anyBoolean());
     }
 
     /**
@@ -470,7 +471,7 @@ class LocalRegistryServiceTest {
         when(tokens.useAccessToken(eq("tok"), any())).thenReturn(tau);
         when(sizeLimits.resolveLimit("foo", "bar")).thenReturn((long) content.length - 1);
 
-        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok"))
+        assertThatThrownBy(() -> registryService.publish(new ByteArrayInputStream(new byte[0]), "tok", false))
                 .isInstanceOf(ErrorResultException.class)
                 .hasMessageContaining("exceeds the size limit")
                 .hasMessageContaining("foo.bar")
@@ -480,7 +481,7 @@ class LocalRegistryServiceTest {
                 .extracting(exc -> ((ErrorResultException) exc).getStatus())
                 .isEqualTo(HttpStatus.CONTENT_TOO_LARGE);
 
-        verify(extensions, never()).publishVersion(any(ExtensionProcessor.class), any());
+        verify(extensions, never()).publishVersion(any(ExtensionProcessor.class), any(), anyBoolean());
     }
 
     /**

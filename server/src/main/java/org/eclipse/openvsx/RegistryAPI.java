@@ -1509,12 +1509,15 @@ public class RegistryAPI {
     public ResponseEntity<ExtensionJson> publish(
             HttpServletRequest request,
             InputStream content,
+            @RequestParam(defaultValue = "false")
+            @Parameter(description = "DANGER!!! Only use this when you know what you are doing. "
+                + "Bypass extension metadata validation.") boolean bypassMetadataValidation,
             @RequestParam(required = false)
             @Parameter(description = TOKEN_PARAM_DESCRIPTION, deprecated = true) String token
     ) {
         var tokenValue = HttpHeadersUtil.resolveAccessToken(request, token);
         try {
-            var json = local.publish(content, tokenValue);
+            var json = local.publish(content, tokenValue, bypassMetadataValidation);
             var serverUrl = UrlUtil.getBaseUrl();
             var url = UrlUtil.createApiVersionUrl(serverUrl, json);
             return ResponseEntity.status(HttpStatus.CREATED)

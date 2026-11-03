@@ -859,14 +859,14 @@ public class LocalRegistryService implements IExtensionRegistry {
     }
 
     public ExtensionJson publish(InputStream content, LoggedInAuthentication liu) throws ErrorResultException {
-        return doPublish(content, null, liu);
+        return doPublish(content, null, liu, false);
     }
 
-    public ExtensionJson publish(InputStream rawContent, String tokenValue) throws ErrorResultException {
-        return doPublish(rawContent, tokenValue, null);
+    public ExtensionJson publish(InputStream rawContent, String tokenValue, boolean bypassMetadataValidation) throws ErrorResultException {
+        return doPublish(rawContent, tokenValue, null, bypassMetadataValidation);
     }
 
-    private ExtensionJson doPublish(InputStream rawContent, String tokenValue, AuthenticatedUser auth)
+    private ExtensionJson doPublish(InputStream rawContent, String tokenValue, AuthenticatedUser auth, boolean bypassMetadataValidation)
             throws ErrorResultException {
         // A rejection anywhere below - invalid/expired token, missing publisher agreement, or
         // (pre-existing, inside extensions.publishVersion) an oversized package - can happen before
@@ -948,7 +948,7 @@ public class LocalRegistryService implements IExtensionRegistry {
                                 HttpStatus.CONTENT_TOO_LARGE);
                     }
 
-                    extVersion = extensions.publishVersion(processor, au);
+                    extVersion = extensions.publishVersion(processor, au, bypassMetadataValidation);
                 }
 
                 var json = toExtensionVersionJson(extVersion, null, true);

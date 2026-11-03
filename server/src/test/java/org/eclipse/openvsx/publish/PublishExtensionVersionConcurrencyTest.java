@@ -300,7 +300,8 @@ class PublishExtensionVersionConcurrencyTest extends AbstractPostgresContainerTe
                                     publishToken().getId(),
                                     null),
                             LocalDateTime.now(),
-                            false);
+                            false,
+                        false);
         }
     }
 
