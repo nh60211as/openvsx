@@ -15,22 +15,24 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - v1.3.2-custom
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - main
+      - v1.3.2-custom
 
 env:
   REGISTRY: ghcr.io
-  SERVER_IMAGE: openvsx-server-snapshot
-  WEBUI_IMAGE: openvsx-webui-snapshot
+  SERVER_IMAGE: openvsx-server
+  SERVER_IMAGE_TAG: v1.3.2-custom-1
+  WEBUI_IMAGE: openvsx-webui
 
 jobs:
   build-cli:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    if: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,6 +63,7 @@ jobs:
       packages: write
       id-token: write
     runs-on: ubuntu-latest
+    if: false
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -121,14 +124,14 @@ jobs:
       with:
         persist-credentials: false
 
-    - name: Get all changed server files
-      id: changed_server_files
-      uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
-      with:
-        files: server/**
+    # - name: Get all changed server files
+    #   id: changed_server_files
+    #   uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
+    #   with:
+    #     files: server/**
 
     - name: Set up JDK
-      if: steps.changed_server_files.outputs.any_changed == 'true'
+      # if: steps.changed_server_files.outputs.any_changed == 'true'
       uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       with:
         distribution: 'temurin'
@@ -138,15 +141,15 @@ jobs:
     # `cache: gradle`, the two can interfere. Only writes cache entries on the default branch - PR
     # runs, forks included, only read. Does not cover server/.gradle/configuration-cache, see below.
     - name: Setup Gradle
-      if: steps.changed_server_files.outputs.any_changed == 'true'
+      # if: steps.changed_server_files.outputs.any_changed == 'true'
       uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # zizmor: ignore[cache-poisoning] v6.3.0, PR-write-scoped, see comment above
 
     # GRADLE_ENCRYPTION_KEY (set on the Run Server Tests step below) is what actually protects this;
     # skipping the restore for fork PRs too is just an optimization, since they couldn't decrypt the
     # entries anyway.
     - name: Cache Gradle configuration cache
-      if: steps.changed_server_files.outputs.any_changed == 'true' &&
-          (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      # if: steps.changed_server_files.outputs.any_changed == 'true' &&
+      #     (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # zizmor: ignore[cache-poisoning] v6.1.0, see comment above
       with:
         path: server/.gradle/configuration-cache
@@ -155,7 +158,7 @@ jobs:
           gradle-configuration-cache-${{ runner.os }}-
 
     - name: Run Server Tests
-      if: steps.changed_server_files.outputs.any_changed == 'true'
+      # if: steps.changed_server_files.outputs.any_changed == 'true'
       env:
         # Gradle's own encryption for the configuration cache, keyed by a fixed secret rather than the
         # per-machine key it generates by default (which wouldn't survive across separate CI runs
@@ -174,16 +177,16 @@ jobs:
     # anchor would avoid the repetition, but zizmor's anchor support is beta and documented as prone
     # to unexpected errors - not worth the fragility for three lines).
     - name: Log in to the Container registry
-      if: steps.changed_server_files.outputs.any_changed == 'true' &&
-          github.repository_owner == 'eclipse-openvsx' &&
-          github.actor != 'dependabot[bot]' &&
-          (
-            github.event_name == 'push' ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'snapshot') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
-          )
+      # if: steps.changed_server_files.outputs.any_changed == 'true' &&
+      #     github.repository_owner == 'eclipse-openvsx' &&
+      #     github.actor != 'dependabot[bot]' &&
+      #     (
+      #       github.event_name == 'push' ||
+      #       (
+      #         contains(github.event.pull_request.labels.*.name, 'snapshot') &&
+      #         github.event.pull_request.head.repo.full_name == github.repository
+      #       )
+      #     )
       uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
       with:
         registry: ${{ env.REGISTRY }}
@@ -191,38 +194,36 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Extract metadata (tags, labels) for Docker
-      if: steps.changed_server_files.outputs.any_changed == 'true' &&
-          github.repository_owner == 'eclipse-openvsx' &&
-          github.actor != 'dependabot[bot]' &&
-          (
-            github.event_name == 'push' ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'snapshot') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
-          )
+      # if: steps.changed_server_files.outputs.any_changed == 'true' &&
+      #     github.repository_owner == 'eclipse-openvsx' &&
+      #     github.actor != 'dependabot[bot]' &&
+      #     (
+      #       github.event_name == 'push' ||
+      #       (
+      #         contains(github.event.pull_request.labels.*.name, 'snapshot') &&
+      #         github.event.pull_request.head.repo.full_name == github.repository
+      #       )
+      #     )
       id: meta
       uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
       with:
         images: |
           ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.SERVER_IMAGE }}
-        tags: |
-          type=raw,value=${{ github.head_ref }},enable={{is_not_default_branch}}
-          type=raw,value={{sha}},enable={{is_default_branch}}
+        tags: ${{ env.SERVER_IMAGE_TAG }}
         labels: |
           org.opencontainers.image.title=OpenVSX Server Snapshot
 
     - name: Build and push Server Image
-      if: steps.changed_server_files.outputs.any_changed == 'true' &&
-          github.repository_owner == 'eclipse-openvsx' &&
-          github.actor != 'dependabot[bot]' &&
-          (
-            github.event_name == 'push' ||
-            (
-              contains(github.event.pull_request.labels.*.name, 'snapshot') &&
-              github.event.pull_request.head.repo.full_name == github.repository
-            )
-          )
+      # if: steps.changed_server_files.outputs.any_changed == 'true' &&
+      #     github.repository_owner == 'eclipse-openvsx' &&
+      #     github.actor != 'dependabot[bot]' &&
+      #     (
+      #       github.event_name == 'push' ||
+      #       (
+      #         contains(github.event.pull_request.labels.*.name, 'snapshot') &&
+      #         github.event.pull_request.head.repo.full_name == github.repository
+      #       )
+      #     )
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
         context: server
@@ -234,6 +235,7 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    if: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
